@@ -23,7 +23,7 @@ class Ticket(models.Model):
         CLOSED = "CLOSED", "Closed"
 
     title = models.CharField(max_length=200)
-    description = models.TextField
+    description = models.TextField()
 
     category = models.CharField(max_length=20, choices=Category.choices)
     priority = models.CharField(
@@ -62,7 +62,7 @@ class TicketMessage(models.Model):
         related_name="authored_ticket_messages",
     )
 
-    body = models.TextField
+    body = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

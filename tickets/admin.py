@@ -8,6 +8,7 @@ class TicketAdmin(admin.ModelAdmin):
     list_display = [
         'id',
         'title',
+        'description',
         'category',
         'priority',
         'status',

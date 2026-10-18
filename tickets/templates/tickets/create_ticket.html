@@ -1,0 +1,15 @@
+{% extends "tickets/base.html" %}
+
+{% block title %}Create Ticket{% endblock %}
+
+{% block content %}
+<h1> Create your Ticket</h1>
+
+<form method='post'>
+    {% csrf_token %}
+    {{ form.as_p}}
+
+    <button type="submit">Submit Ticket</button>
+</form>
+
+{% endblock %}

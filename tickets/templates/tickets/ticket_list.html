@@ -1,0 +1,40 @@
+{% extends "tickets/base.html" %}
+
+{% block title %} All Tickets {% endblock %}
+
+{% block content %}
+<h1>My Tickets</h1>
+
+<p><a href="{% url 'ticket_create'%}">Create a Ticket</a></p>
+
+{% if tickets %}
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Title</th>
+            <th>Category</th>
+            <th>Priority</th>
+            <th>Status</th>
+            <th>Created</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for ticket in tickets  %}
+        <tr>
+            <td>{{ticket.pk}}</td>
+            <td><a href="{% url "ticket_detail" ticket_id=ticket.pk %}">{{ticket.title}}</a></td>
+            <td>{{ticket.get_category_display}}</td>
+            <td>{{ticket.get_priority_display}}</td>
+            <td>{{ticket.get_status_display}}</td>
+            <td>{{ticket.created_at|date:"d M Y, H:i"}}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+    <p>You haven't created any tickets yet.</p>
+    <p><a href="{% url 'ticket_create' %}">Create your first ticket</a></p>
+{% endif %}
+
+{% endblock %}

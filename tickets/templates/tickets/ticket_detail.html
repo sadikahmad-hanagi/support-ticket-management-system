@@ -1,0 +1,19 @@
+{% extends "tickets/base.html" %}
+
+{% block title %}Ticket #{{ticket.pk}}{% endblock %}
+
+{% block content %}
+<h1>{{ticket.pk}}: {{ticket.title}}</h1>
+
+<p><strong>Description:</strong></p>
+<p>{{ticket.description|linebreaksbr}}</p>
+
+<p><strong>Category:</strong>{{ticket.get_category_display}}</p>
+<p><strong>Priority:</strong>{{ticket.get_priority_display}}</p>
+<p><strong>Status:</strong>{{ticket.get_status_display}}</p>
+<p><strong>Created:</strong>{{ticket.created_at|date:"d M Y, H:i"}}</p>
+<p><strong>Last updated:</strong>{{ticket.updated_at|date:"d M Y, H:i"}}</p>
+
+
+<p><a href="{%url 'tickets'%}">Back to My Tickets</a></p>
+{% endblock %}
