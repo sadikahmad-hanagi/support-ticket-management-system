@@ -7,7 +7,7 @@ __pycache__/
 venv/
 env/
 
-# Environment secrets
+# Environment variables and secrets
 .env
 .env.*
 !.env.example
@@ -15,3 +15,13 @@ env/
 # Local database
 db.sqlite3
 db.sqlite3-journal
+
+# Generated files
+staticfiles/
+media/
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
