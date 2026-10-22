@@ -1,5 +1,6 @@
 from django import forms
 from .models import Ticket
+from django.contrib.auth import get_user_model
 
 class TicketForm(forms.ModelForm):
     class Meta:
@@ -10,5 +11,14 @@ class TicketForm(forms.ModelForm):
             super().__init__(self, *args, **kwargs)
             self.fields['priority'].initial = Ticket.Priority.MEDIUM
 
-    
-        
+
+User = get_user_model()
+
+
+class TicketAssignmentForm(forms.Form):
+    assignee = forms.ModelChoiceField(
+        queryset=User.objects.filter(role="AGENT"),
+        required=False,
+        empty_label="Unassigned",
+        label="Assign to agent",
+    )

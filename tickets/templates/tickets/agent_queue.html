@@ -1,0 +1,86 @@
+{% extends "tickets/base.html" %} {% block content %}
+<h1>Agent Ticket Queue</h1>
+
+<form method="get">
+  <label for="status">Filter by status:</label>
+  <select name="status" id="status">
+    <option value="" {% if not selected_status %}selected{% endif %}>
+      All tickets
+    </option>
+
+    {% for value, label in statuses %}
+    <option
+      value="{{ value }}"
+      {%
+      if
+      selected_status=""
+      ="value"
+      %}selected{%
+      endif
+      %}
+    >
+      {{ label }}
+    </option>
+    {% endfor %}
+  </select>
+
+  <button type="submit">Filter</button>
+</form>
+
+{% if tickets %}
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Title</th>
+      <th>Category</th>
+      <th>Priority</th>
+      <th>Status</th>
+      <th>Creator</th>
+      <th>Assignee</th>
+      <th>Created</th>
+      <th>Assignment</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for ticket in tickets %}
+    <tr>
+      <td>{{ ticket.id }}</td>
+      <td>
+        <a href="{% url 'ticket_detail' ticket_id=ticket.id %}">
+          {{ ticket.title }}
+        </a>
+      </td>
+      <td>{{ ticket.get_category_display }}</td>
+      <td>{{ ticket.get_priority_display }}</td>
+      <td>{{ ticket.get_status_display }}</td>
+      <td>{{ ticket.created_by.username }}</td>
+      <td>
+        {% if ticket.assigned_to %} {{ ticket.assigned_to.username }} {% else %}
+        Unassigned {% endif %}
+      </td>
+      <td>{{ ticket.created_at }}</td>
+      <td>
+        <form method="post" action="{% url 'ticket_assign' ticket.id %}">
+          {% csrf_token %}
+
+          <select name="assignee">
+            <option value="" {% if not ticket.assigned_to %}selected{% endif %}>Unassigned</option>
+
+            {% for agent in assignment_form.fields.assignee.queryset %}
+            <option value="{{ agent.pk }}" {% if ticket.assigned_to_id == agent.pk %}selected{% endif%}>
+              {{ agent.username }}
+            </option>
+            {% endfor %}
+          </select>
+
+          <button type="submit">Save assignment</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No tickets found.</p>
+{% endif %} {% endblock %}
