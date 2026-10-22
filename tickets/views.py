@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from .forms import TicketForm, TicketAssignmentForm
+from .forms import TicketForm, TicketAssignmentForm, TicketStatusForm
 from django.contrib.auth.decorators import login_required
 from .models import Ticket
 from .permissions import agent_required
@@ -38,8 +38,13 @@ def detail(request, ticket_id):
 
     if request.user.role != "AGENT" and ticket.created_by != request.user:
         raise Http404
-    
-    return render(request, 'tickets/ticket_detail.html', {'ticket' : ticket})
+
+    context = {"ticket": ticket}
+
+    if request.user.role == "AGENT":
+        context["status_form"] = TicketStatusForm(initial={"status": ticket.status})
+
+    return render(request, 'tickets/ticket_detail.html', context)
 
 
 @agent_required
@@ -83,3 +88,22 @@ def assign_ticket(request, ticket_id):
             messages.error(request, "Invalid assignee. Please select an agent.")
 
     return redirect("agent_queue") 
+
+
+@agent_required
+def update_ticket_status(request, ticket_id):
+    ticket = get_object_or_404(Ticket, pk = ticket_id)
+
+    if request.method != "POST":
+        return redirect("ticket_detail", ticket_id=ticket.pk)
+
+    form = TicketStatusForm(request.POST)
+    if form.is_valid():
+        ticket.status = form.cleaned_data["status"]
+        ticket.save(update_fields=["status"])
+        messages.success(request, "Ticket status updated successfully!")
+
+    else:
+        messages.error(request, "Invalid status. Please select a valid status")
+
+    return redirect("ticket_detail", ticket_id = ticket.pk)

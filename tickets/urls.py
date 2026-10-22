@@ -11,4 +11,9 @@ urlpatterns = [
         views.assign_ticket,
         name="ticket_assign",
     ),
+    path(
+        "<int:ticket_id>/status/",
+        views.update_ticket_status,
+        name="ticket_status_update",
+    ),
 ]

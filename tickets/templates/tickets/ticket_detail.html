@@ -11,6 +11,19 @@
 <p><strong>Category:</strong>{{ticket.get_category_display}}</p>
 <p><strong>Priority:</strong>{{ticket.get_priority_display}}</p>
 <p><strong>Status:</strong>{{ticket.get_status_display}}</p>
+{% if request.user.role == "AGENT" %}
+    <h2>Update Ticket Status</h2>
+
+    <form method="post"
+          action="{% url 'ticket_status_update' ticket.pk %}">
+        {% csrf_token %}
+
+        {{ status_form.status.label_tag }}
+        {{ status_form.status }}
+
+        <button type="submit">Update Status</button>
+    </form>
+{% endif %}
 <p><strong>Created:</strong>{{ticket.created_at|date:"d M Y, H:i"}}</p>
 <p><strong>Last updated:</strong>{{ticket.updated_at|date:"d M Y, H:i"}}</p>
 

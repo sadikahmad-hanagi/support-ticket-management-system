@@ -22,3 +22,10 @@ class TicketAssignmentForm(forms.Form):
         empty_label="Unassigned",
         label="Assign to agent",
     )
+
+
+class TicketStatusForm(forms.Form):
+    status = forms.ChoiceField(
+        choices=Ticket.Status.choices,
+        label="Update status",
+    )
