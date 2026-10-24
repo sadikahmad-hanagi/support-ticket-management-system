@@ -469,3 +469,67 @@ class TicketMessagingTests(TestCase):
             content.index("First message"),
             content.index("Second message"),
         )
+
+
+class TicketStatusWorkflowTests(TestCase):
+    def setUp(self):
+        self.customer = User.objects.create_user(
+            username="workflow_customer",
+            password="test-password-123",
+            role="CUSTOMER",
+        )
+        self.agent = User.objects.create_user(
+            username="workflow_agent",
+            password="test-password-123",
+            role="AGENT",
+        )
+        self.ticket = Ticket.objects.create(
+            title="Workflow test",
+            description="Testing status transitions",
+            category=Ticket.Category.BUG,
+            created_by=self.customer,
+        )
+        self.client.force_login(self.agent)
+
+    def update_status(self, status):
+        return self.client.post(
+            reverse(
+                "ticket_status_update",
+                kwargs={"ticket_id": self.ticket.pk},
+            ),
+            {"status": status},
+        )
+
+    def test_open_can_move_to_in_progress(self):
+        response = self.update_status(Ticket.Status.IN_PROGRESS)
+
+        self.assertRedirects(
+            response,
+            reverse("ticket_detail", kwargs={"ticket_id": self.ticket.pk}),
+        )
+        self.ticket.refresh_from_db()
+        self.assertEqual(self.ticket.status, Ticket.Status.IN_PROGRESS)
+
+    def test_resolved_can_be_reopened(self):
+        self.ticket.status = Ticket.Status.RESOLVED
+        self.ticket.save()
+
+        self.update_status(Ticket.Status.IN_PROGRESS)
+
+        self.ticket.refresh_from_db()
+        self.assertEqual(self.ticket.status, Ticket.Status.IN_PROGRESS)
+
+    def test_closed_ticket_cannot_change_status(self):
+        self.ticket.status = Ticket.Status.CLOSED
+        self.ticket.save()
+
+        self.update_status(Ticket.Status.IN_PROGRESS)
+
+        self.ticket.refresh_from_db()
+        self.assertEqual(self.ticket.status, Ticket.Status.CLOSED)
+
+    def test_invalid_status_is_rejected(self):
+        self.update_status("NOT_A_STATUS")
+
+        self.ticket.refresh_from_db()
+        self.assertEqual(self.ticket.status, Ticket.Status.OPEN)

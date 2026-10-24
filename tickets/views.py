@@ -53,6 +53,11 @@ def detail(request, ticket_id):
         "message_form": TicketMessageForm(),
     }
 
+    context["status_form"] = TicketStatusForm(
+        initial={"status": ticket.status},
+        current_status=ticket.status,
+    )
+
     if request.user.role == "AGENT":
         context["status_form"] = TicketStatusForm(initial={"status": ticket.status})
 
@@ -109,7 +114,10 @@ def update_ticket_status(request, ticket_id):
     if request.method != "POST":
         return redirect("ticket_detail", ticket_id=ticket.pk)
 
-    form = TicketStatusForm(request.POST)
+    form = TicketStatusForm(
+        request.POST,
+        current_status=ticket.status,
+    )
     if form.is_valid():
         ticket.status = form.cleaned_data["status"]
         ticket.save(update_fields=["status"])
