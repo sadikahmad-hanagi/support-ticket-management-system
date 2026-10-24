@@ -7,11 +7,24 @@
     <title>{% block title %}Support Ticket System{% endblock %}</title>
 </head>
 <body>
-    <navzz>
+    
+<nav>
+    {% if user.is_authenticated %}
         <a href="{% url 'tickets' %}">My Tickets</a>
         |
         <a href="{% url 'ticket_create' %}">Create Ticket</a>
-    </nav>
+        |
+        <span>Logged in as: {{ user.username }}</span>
+        |
+        <form method="post" action="{% url 'logout' %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit">Logout</button>
+        </form>
+    {% else %}
+        <a href="{% url 'login' %}">Login</a>
+    {% endif %}
+</nav>
+
 
     <hr>
     {% if messages %}

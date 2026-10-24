@@ -1,10 +1,11 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from .forms import TicketForm, TicketAssignmentForm, TicketStatusForm
+from .forms import TicketForm, TicketAssignmentForm, TicketStatusForm, TicketMessageForm
 from django.contrib.auth.decorators import login_required
-from .models import Ticket
+from .models import Ticket, TicketMessage
 from .permissions import agent_required
 from django.contrib import messages
 from django.http import Http404
+
 
 # Create your views here.
 @login_required
@@ -32,14 +33,25 @@ def tickets(request):
     tickets = Ticket.objects.filter(created_by=request.user)
     return render(request, 'tickets/ticket_list.html', {'tickets': tickets})
 
-@login_required
-def detail(request, ticket_id):
-    ticket = get_object_or_404(Ticket, id = ticket_id)
 
-    if request.user.role != "AGENT" and ticket.created_by != request.user:
+def get_authorized_ticket(request, ticket_id):
+    ticket = get_object_or_404(Ticket, pk=ticket_id)
+
+    if request.user.role != "AGENT" and ticket.created_by_id != request.user.id:
         raise Http404
 
-    context = {"ticket": ticket}
+    return ticket
+
+
+@login_required
+def detail(request, ticket_id):
+    ticket = get_authorized_ticket(request, ticket_id)
+
+    context = {
+        "ticket": ticket,
+        "ticket_messages": ticket.messages.select_related("author").all(),
+        "message_form": TicketMessageForm(),
+    }
 
     if request.user.role == "AGENT":
         context["status_form"] = TicketStatusForm(initial={"status": ticket.status})
@@ -107,3 +119,28 @@ def update_ticket_status(request, ticket_id):
         messages.error(request, "Invalid status. Please select a valid status")
 
     return redirect("ticket_detail", ticket_id = ticket.pk)
+
+
+@login_required
+def post_ticket_message(request, ticket_id):
+    ticket = get_authorized_ticket(request, ticket_id)
+
+    if request.method != "POST":
+        return redirect("ticket_detail", ticket_id=ticket.pk)
+
+    form = TicketMessageForm(request.POST)
+
+    if form.is_valid():
+        message = form.save(commit=False)
+        message.ticket = ticket
+        message.author = request.user
+        message.save()
+
+        messages.success(request, "Message sent successfully.")
+    else:
+        messages.error(
+            request,
+            "Please enter a valid message before submitting.",
+        )
+
+    return redirect("ticket_detail", ticket_id=ticket.pk)

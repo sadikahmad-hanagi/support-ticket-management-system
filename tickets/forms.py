@@ -1,5 +1,5 @@
 from django import forms
-from .models import Ticket
+from .models import Ticket, TicketMessage
 from django.contrib.auth import get_user_model
 
 class TicketForm(forms.ModelForm):
@@ -29,3 +29,20 @@ class TicketStatusForm(forms.Form):
         choices=Ticket.Status.choices,
         label="Update status",
     )
+
+
+class TicketMessageForm(forms.ModelForm):
+    class Meta:
+        model = TicketMessage
+        fields = ["body"]
+        widgets = {
+            "body": forms.Textarea(attrs={"rows": 4}),
+        }
+
+    def clean_body(self):
+        body = self.cleaned_data["body"].strip()
+
+        if not body:
+            raise forms.ValidationError("Message cannot be empty or whitespace only.")
+
+        return body

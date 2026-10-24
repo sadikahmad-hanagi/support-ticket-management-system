@@ -11,6 +11,7 @@
 <p><strong>Category:</strong>{{ticket.get_category_display}}</p>
 <p><strong>Priority:</strong>{{ticket.get_priority_display}}</p>
 <p><strong>Status:</strong>{{ticket.get_status_display}}</p>
+<p><strong>Created By:</strong>{{ticket.created_by}}</p>
 {% if request.user.role == "AGENT" %}
     <h2>Update Ticket Status</h2>
 
@@ -26,6 +27,38 @@
 {% endif %}
 <p><strong>Created:</strong>{{ticket.created_at|date:"d M Y, H:i"}}</p>
 <p><strong>Last updated:</strong>{{ticket.updated_at|date:"d M Y, H:i"}}</p>
+
+
+<hr>
+
+<h2>Conversation</h2>
+
+{% for message in ticket_messages %}
+    <article>
+        <p>
+            <strong>{{ message.author.username }}</strong>
+            <small>{{ message.created_at|date:"d M Y, H:i" }}</small>
+        </p>
+        <p>{{ message.body|linebreaksbr }}</p>
+    </article>
+    <hr>
+{% empty %}
+    <p>No messages yet. Start the conversation below.</p>
+{% endfor %}
+
+<h3>Send a reply</h3>
+
+<form method="post"
+      action="{% url 'ticket_message_post' ticket.pk %}">
+    {% csrf_token %}
+
+    {{ message_form.body.label_tag }}
+    {{ message_form.body }}
+    {{ message_form.body.errors }}
+
+    <button type="submit">Send Message</button>
+</form>
+
 
 
 <p>{% if request.user.role == "AGENT" %}

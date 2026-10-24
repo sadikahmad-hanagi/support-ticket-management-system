@@ -16,4 +16,9 @@ urlpatterns = [
         views.update_ticket_status,
         name="ticket_status_update",
     ),
+    path(
+        "<int:ticket_id>/messages/",
+        views.post_ticket_message,
+        name="ticket_message_post",
+    ),
 ]

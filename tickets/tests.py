@@ -1,7 +1,7 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.urls import reverse
-from .models import Ticket
+from .models import Ticket, TicketMessage
 
 User = get_user_model()
 
@@ -280,3 +280,192 @@ class AgentQueueTests(TestCase):
         self.assertRedirects(response, reverse("agent_queue"))
         self.ticket.refresh_from_db()
         self.assertEqual(self.ticket.assigned_to, self.agent)
+
+
+class TicketMessagingTests(TestCase):
+    def setUp(self):
+        self.customer = User.objects.create_user(
+            username="message_customer",
+            password="test-password-123",
+            role="CUSTOMER",
+        )
+        self.other_customer = User.objects.create_user(
+            username="message_other_customer",
+            password="test-password-123",
+            role="CUSTOMER",
+        )
+        self.agent = User.objects.create_user(
+            username="message_agent",
+            password="test-password-123",
+            role="AGENT",
+        )
+
+        self.ticket = Ticket.objects.create(
+            title="My ticket",
+            description="Testing messages",
+            category=Ticket.Category.BUG,
+            created_by=self.customer,
+        )
+        self.other_ticket = Ticket.objects.create(
+            title="Other ticket",
+            description="Another customer's ticket",
+            category=Ticket.Category.BILLING,
+            created_by=self.other_customer,
+        )
+
+        self.message_url = reverse(
+            "ticket_message_post",
+            kwargs={"ticket_id": self.ticket.pk},
+        )
+        self.detail_url = reverse(
+            "ticket_detail",
+            kwargs={"ticket_id": self.ticket.pk},
+        )
+
+    def test_customer_can_view_and_post_message(self):
+        self.client.force_login(self.customer)
+
+        response = self.client.get(self.detail_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Conversation")
+        self.assertContains(response, "No messages yet")
+
+        response = self.client.post(
+            self.message_url,
+            {"body": "I need help with my account."},
+        )
+
+        self.assertRedirects(response, self.detail_url)
+
+        message = TicketMessage.objects.get()
+        self.assertEqual(message.body, "I need help with my account.")
+        self.assertEqual(message.author, self.customer)
+        self.assertEqual(message.ticket, self.ticket)
+
+    def test_customer_cannot_view_or_message_another_customers_ticket(self):
+        self.client.force_login(self.customer)
+
+        other_detail_url = reverse(
+            "ticket_detail",
+            kwargs={"ticket_id": self.other_ticket.pk},
+        )
+        other_message_url = reverse(
+            "ticket_message_post",
+            kwargs={"ticket_id": self.other_ticket.pk},
+        )
+
+        response = self.client.get(other_detail_url)
+        self.assertEqual(response.status_code, 404)
+
+        response = self.client.post(
+            other_message_url,
+            {"body": "Unauthorized message"},
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(TicketMessage.objects.count(), 0)
+
+    def test_agent_can_view_and_reply_to_any_ticket(self):
+        self.client.force_login(self.agent)
+
+        other_detail_url = reverse(
+            "ticket_detail",
+            kwargs={"ticket_id": self.other_ticket.pk},
+        )
+        other_message_url = reverse(
+            "ticket_message_post",
+            kwargs={"ticket_id": self.other_ticket.pk},
+        )
+
+        response = self.client.get(other_detail_url)
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.post(
+            other_message_url,
+            {"body": "We are looking into this issue."},
+        )
+        self.assertRedirects(response, other_detail_url)
+
+        message = TicketMessage.objects.get()
+        self.assertEqual(message.ticket, self.other_ticket)
+        self.assertEqual(message.author, self.agent)
+
+    def test_anonymous_user_cannot_post_message(self):
+        response = self.client.post(
+            self.message_url,
+            {"body": "Anonymous message"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response.url)
+        self.assertEqual(TicketMessage.objects.count(), 0)
+
+    def test_empty_and_whitespace_messages_are_rejected(self):
+        self.client.force_login(self.customer)
+
+        for body in ["", "   ", "\n \t  "]:
+            with self.subTest(body=repr(body)):
+                response = self.client.post(
+                    self.message_url,
+                    {"body": body},
+                )
+
+                self.assertRedirects(response, self.detail_url)
+                self.assertEqual(TicketMessage.objects.count(), 0)
+
+    def test_forged_author_and_ticket_ids_are_ignored(self):
+        self.client.force_login(self.customer)
+
+        response = self.client.post(
+            self.message_url,
+            {
+                "body": "A legitimate message",
+                "author": self.agent.pk,
+                "ticket": self.other_ticket.pk,
+            },
+        )
+
+        self.assertRedirects(response, self.detail_url)
+
+        message = TicketMessage.objects.get()
+        self.assertEqual(message.author, self.customer)
+        self.assertEqual(message.ticket, self.ticket)
+
+    def test_get_does_not_create_message(self):
+        self.client.force_login(self.customer)
+
+        response = self.client.get(self.message_url)
+
+        self.assertRedirects(response, self.detail_url)
+        self.assertEqual(TicketMessage.objects.count(), 0)
+
+    def test_messages_are_displayed_oldest_first(self):
+        self.client.force_login(self.customer)
+
+        older = TicketMessage.objects.create(
+            ticket=self.ticket,
+            author=self.customer,
+            body="First message",
+        )
+        newer = TicketMessage.objects.create(
+            ticket=self.ticket,
+            author=self.agent,
+            body="Second message",
+        )
+
+        # Ensure the timestamps are distinct for a deterministic test.
+        from datetime import timedelta
+        from django.utils import timezone
+
+        older.created_at = timezone.now() - timedelta(minutes=2)
+        older.save(update_fields=["created_at"])
+        newer.created_at = timezone.now() - timedelta(minutes=1)
+        newer.save(update_fields=["created_at"])
+
+        response = self.client.get(self.detail_url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertLess(
+            content.index("First message"),
+            content.index("Second message"),
+        )
